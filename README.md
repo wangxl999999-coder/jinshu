@@ -113,6 +113,23 @@ jinshu/
 └── README.md
 ```
 
-## 访问地址
-- 前端页面: http://localhost:8080
-- 后端API: http://localhost:3000
+## 访问说明
+
+### ⚠️ 重要提示
+- **前端页面（用户使用）**: http://localhost:8080
+- **后端API（仅接口）**: http://localhost:3000
+
+**不要直接访问 http://localhost:3000 使用管理后台！** 管理后台功能是集成在前端页面中的，登录管理员账号后会自动显示"管理后台"菜单。
+
+### 默认账号
+- 管理员: `admin` / `admin123`
+- 登录后点击右上角菜单中的"管理后台"进入
+
+### 启动前端
+```bash
+cd frontend
+npm install
+npm run serve
+```
+
+启动后访问 **http://localhost:8080** 使用系统。

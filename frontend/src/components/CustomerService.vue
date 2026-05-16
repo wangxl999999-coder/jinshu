@@ -1,14 +1,14 @@
 <template>
-  <el-dialog v-model="visible" title="在线客服" width="600px" @close="handleClose">
+  <el-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" title="在线客服" width="600px" @close="handleClose">
     <div class="chat-container">
       <div class="messages" ref="messagesRef">
         <div
           v-for="(msg, index) in messages"
           :key="index"
-          :class="['message', msg.senderType === 'user' ? 'user-message' : 'admin-message']"
+          :class="['message', msg.senderType === 'user' || msg.sender_type === 'user' ? 'user-message' : 'admin-message']"
         >
           <div class="message-content">{{ msg.content }}</div>
-          <div class="message-time">{{ formatTime(msg.createdAt) }}</div>
+          <div class="message-time">{{ formatTime(msg.createdAt || msg.created_at) }}</div>
         </div>
       </div>
       <div class="input-area">
@@ -27,26 +27,31 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { io } from 'socket.io-client'
 import request from '../utils/request'
 
-const props = defineProps(['visible'])
-const emit = defineEmits(['update:visible'])
+const props = defineProps(['modelValue'])
+const emit = defineEmits(['update:modelValue'])
 
-const visible = ref(props.visible)
 const messages = ref([])
 const inputMessage = ref('')
 const sessionCode = ref('')
 const socket = ref(null)
 const messagesRef = ref(null)
+const initialized = ref(false)
 
 const formatTime = (time) => {
   return new Date(time).toLocaleString()
 }
 
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!inputMessage.value.trim()) return
+
+  if (!socket.value) {
+    await initChat()
+  }
 
   socket.value.emit('send_message', {
     sessionCode: sessionCode.value,
@@ -60,10 +65,14 @@ const sendMessage = () => {
     createdAt: new Date()
   })
 
-  request.post(`/chat/session/${sessionCode.value}/messages`, {
-    senderType: 'user',
-    content: inputMessage.value
-  })
+  try {
+    await request.post(`/chat/session/${sessionCode.value}/messages`, {
+      senderType: 'user',
+      content: inputMessage.value
+    })
+  } catch (e) {
+    console.error('保存消息失败:', e)
+  }
 
   inputMessage.value = ''
   scrollToBottom()
@@ -78,38 +87,46 @@ const scrollToBottom = () => {
 }
 
 const handleClose = () => {
-  emit('update:visible', false)
+  emit('update:modelValue', false)
 }
 
 const initChat = async () => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const data = await request.post('/chat/session', { userId: user.id })
-  sessionCode.value = data.sessionCode
+  if (initialized.value) return
+  
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    const data = await request.post('/chat/session', { userId: user.id })
+    sessionCode.value = data.sessionCode
 
-  socket.value = io('http://localhost:3000')
-  socket.value.emit('join_session', sessionCode.value)
+    socket.value = io('http://localhost:3000')
+    socket.value.emit('join_session', sessionCode.value)
 
-  socket.value.on('new_message', (msg) => {
-    messages.value.push(msg)
-    scrollToBottom()
-  })
-
-  const history = await request.get(`/chat/session/${sessionCode.value}/messages`)
-  messages.value = history
-
-  if (messages.value.length === 0) {
-    messages.value.push({
-      senderType: 'admin',
-      content: '您好！欢迎咨询金属价格相关问题，请问有什么可以帮您？',
-      createdAt: new Date()
+    socket.value.on('new_message', (msg) => {
+      messages.value.push(msg)
+      scrollToBottom()
     })
-  }
 
-  scrollToBottom()
+    const history = await request.get(`/chat/session/${sessionCode.value}/messages`)
+    messages.value = history
+
+    if (messages.value.length === 0) {
+      messages.value.push({
+        senderType: 'admin',
+        content: '您好！欢迎咨询金属价格相关问题，请问有什么可以帮您？',
+        createdAt: new Date()
+      })
+    }
+
+    initialized.value = true
+    scrollToBottom()
+  } catch (error) {
+    console.error('初始化聊天失败:', error)
+    ElMessage.error('连接客服失败，请稍后重试')
+  }
 }
 
-onMounted(() => {
-  if (visible.value) {
+watch(() => props.modelValue, (newVal) => {
+  if (newVal) {
     initChat()
   }
 })

@@ -17,6 +17,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get('/', (req, res) => {
+  res.json({
+    message: '金属价格查看系统 - API服务',
+    status: 'running',
+    docs: {
+      frontend: 'http://localhost:8080 (前端访问地址)',
+      backend: 'http://localhost:3000 (后端API地址)',
+      default_account: {
+        username: 'admin',
+        password: 'admin123'
+      }
+    }
+  });
+});
+
 const db = require('./database');
 const authRoutes = require('./routes/auth');
 const metalRoutes = require('./routes/metals');

@@ -37,8 +37,8 @@
     </el-footer>
   </el-container>
 
-  <LoginDialog v-model:visible="showLogin" @success="onLoginSuccess" />
-  <CustomerService v-model:visible="showChat" />
+  <LoginDialog v-model="showLogin" @success="onLoginSuccess" />
+  <CustomerService v-model="showChat" />
 </template>
 
 <script setup>
